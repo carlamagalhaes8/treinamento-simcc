@@ -1,26 +1,17 @@
-import os
-
 import psycopg2
 
 
 class Connection:
-    def __init__(
-        self,
-        database: str = os.getenv("DATABASE", "postgres"),
-        user: str = os.getenv("PG_USER", "postgres"),
-        password: str = os.getenv("PASSWORD", "postgres"),
-        host: str = os.getenv("HOST", "localhost"),
-        port: int = int(os.getenv("PORT", "5432")),
-    ):
-        self.database = database
-        self.user = user
-        self.password = password
-        self.host = host
-        self.port = port
+    def __init__(self):
+        self.database = "BD_PESQUISADOR"
+        self.user = "postgres"
+        self.password = "qualquer_uma"
+        self.host = "localhost"
+        self.port = 5437
         self.connection = None
 
     def __enter__(self):
-        self.connection = psycopg.connect(
+        self.connection = psycopg2.connect(
             dbname=self.database,
             user=self.user,
             host=self.host,
@@ -31,11 +22,7 @@ class Connection:
 
     def __exit__(self, exc_type, exc_value, traceback):
         if self.connection:
-            try:
-                self.connection.close()
-            except Exception as e:
-                print(f"Erro ao fechar a conexão: {e}")
-                raise
+            self.connection.close()
 
     def select(self, script_sql: str, parameters: list = []):
         with self.connection.cursor() as cursor:
