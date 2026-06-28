@@ -168,3 +168,50 @@ def excluir_producao(producoes_id):
 
     with Connection() as conn:
         conn.exec(sql, [producoes_id])
+
+# consultar por pesquisador_id
+def consultar_producoes_por_pesquisador(pesquisadores_id):
+
+    sql = """
+        SELECT
+            producoes_id,
+            pesquisadores_id,
+            issn,
+            nomeartigo,
+            anoartigo
+        FROM producoes
+        WHERE pesquisadores_id = %s;
+    """
+
+    with Connection() as conn:
+        registros = conn.select(sql, [pesquisadores_id])
+
+    if not registros:
+        return []
+
+    df = pd.DataFrame(
+        registros,
+        columns=[
+            "producoes_id",
+            "pesquisadores_id",
+            "issn",
+            "nomeartigo",
+            "anoartigo"
+        ]
+    )
+
+    lista = []
+
+    for _, dados in df.iterrows():
+
+        producao = Producao(
+            producoes_id=dados["producoes_id"],
+            pesquisadores_id=dados["pesquisadores_id"],
+            issn=dados["issn"],
+            nomeartigo=dados["nomeartigo"],
+            anoartigo=dados["anoartigo"]
+        )
+
+        lista.append(producao.gerar_json())
+
+    return lista

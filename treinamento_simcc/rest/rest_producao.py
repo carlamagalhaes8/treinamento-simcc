@@ -64,3 +64,13 @@ def excluir_producao(producoes_id):
     dao_producoes.excluir_producao(producoes_id)
 
     return jsonify({"mensagem": "Produção removida com sucesso"}), 200
+
+# consultar por pesquisador_id
+@rest_producao.route("/producao/pesquisador/<pesquisadores_id>", methods=["GET"])
+def consultar_por_pesquisador(pesquisadores_id):
+
+    lista = dao_producoes.consultar_producoes_por_pesquisador(
+        pesquisadores_id
+    )
+
+    return jsonify(lista), 200
