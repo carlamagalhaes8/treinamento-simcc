@@ -1,18 +1,22 @@
 import pandas as pd
+
 from dao.banco import Connection
-from model.producao import Producao
 
 
 def consultar_producoes():
 
     sql = """
         SELECT
-            producoes_id,
-            pesquisadores_id,
-            issn,
-            nomeartigo,
-            anoartigo
-        FROM producoes;
+            p.producoes_id,
+            p.pesquisadores_id,
+            pe.nome AS pesquisador_nome,
+            p.issn,
+            p.nomeartigo,
+            p.anoartigo
+        FROM producoes p
+        JOIN pesquisadores pe
+            ON pe.pesquisadores_id = p.pesquisadores_id
+        ORDER BY p.nomeartigo;
     """
 
     with Connection() as conn:
@@ -23,6 +27,7 @@ def consultar_producoes():
         columns=[
             "producoes_id",
             "pesquisadores_id",
+            "pesquisador_nome",
             "issn",
             "nomeartigo",
             "anoartigo"
@@ -33,185 +38,41 @@ def consultar_producoes():
 
     for _, dados in df.iterrows():
 
-        producao = Producao(
-            producoes_id=dados["producoes_id"],
-            pesquisadores_id=dados["pesquisadores_id"],
-            issn=dados["issn"],
-            nomeartigo=dados["nomeartigo"],
-            anoartigo=dados["anoartigo"]
-        )
-
-        lista.append(producao.gerar_json())
-
-    return lista
-
-
-def consultar_producao(producoes_id):
-
-    sql = """
-        SELECT
-            producoes_id,
-            pesquisadores_id,
-            issn,
-            nomeartigo,
-            anoartigo
-        FROM producoes
-        WHERE producoes_id = %s;
-    """
-
-    with Connection() as conn:
-        registro = conn.select(sql, [producoes_id])
-
-    if not registro:
-        return None
-
-    p = registro[0]
-
-    producao = Producao(
-        producoes_id=p[0],
-        pesquisadores_id=p[1],
-        issn=p[2],
-        nomeartigo=p[3],
-        anoartigo=p[4]
-    )
-
-    return producao.gerar_json()
-
-
-def inserir_producao(dados):
-
-    sql = """
-        INSERT INTO producoes (
-            pesquisadores_id,
-            issn,
-            nomeartigo,
-            anoartigo
-        )
-        VALUES (%s, %s, %s, %s);
-    """
-
-    valores = [
-        dados["pesquisadores_id"],
-        dados["issn"],
-        dados["nomeartigo"],
-        dados["anoartigo"]
-    ]
-
-    with Connection() as conn:
-        conn.exec(sql, valores)
-
-
-def atualizar_producao(producoes_id, dados):
-
-    sql = """
-        UPDATE producoes
-        SET
-            pesquisadores_id = %s,
-            issn = %s,
-            nomeartigo = %s,
-            anoartigo = %s
-        WHERE producoes_id = %s;
-    """
-
-    valores = [
-        dados["pesquisadores_id"],
-        dados["issn"],
-        dados["nomeartigo"],
-        dados["anoartigo"],
-        producoes_id
-    ]
-
-    with Connection() as conn:
-        conn.exec(sql, valores)
-
-
-def alterar_producao(producoes_id, dados):
-
-    atual = consultar_producao(producoes_id)
-
-    if atual is None:
-        return
-
-    pesquisadores_id = dados.get("pesquisadores_id", atual["pesquisadores_id"])
-    issn = dados.get("issn", atual["issn"])
-    nomeartigo = dados.get("nomeartigo", atual["nomeartigo"])
-    anoartigo = dados.get("anoartigo", atual["anoartigo"])
-
-    sql = """
-        UPDATE producoes
-        SET
-            pesquisadores_id = %s,
-            issn = %s,
-            nomeartigo = %s,
-            anoartigo = %s
-        WHERE producoes_id = %s;
-    """
-
-    valores = [
-        pesquisadores_id,
-        issn,
-        nomeartigo,
-        anoartigo,
-        producoes_id
-    ]
-
-    with Connection() as conn:
-        conn.exec(sql, valores)
-
-
-def excluir_producao(producoes_id):
-
-    sql = """
-        DELETE FROM producoes
-        WHERE producoes_id = %s;
-    """
-
-    with Connection() as conn:
-        conn.exec(sql, [producoes_id])
-
-# consultar por pesquisador_id
-def consultar_producoes_por_pesquisador(pesquisadores_id):
-
-    sql = """
-        SELECT
-            producoes_id,
-            pesquisadores_id,
-            issn,
-            nomeartigo,
-            anoartigo
-        FROM producoes
-        WHERE pesquisadores_id = %s;
-    """
-
-    with Connection() as conn:
-        registros = conn.select(sql, [pesquisadores_id])
-
-    if not registros:
-        return []
-
-    df = pd.DataFrame(
-        registros,
-        columns=[
-            "producoes_id",
-            "pesquisadores_id",
-            "issn",
-            "nomeartigo",
-            "anoartigo"
-        ]
-    )
-
-    lista = []
-
-    for _, dados in df.iterrows():
-
-        producao = Producao(
-            producoes_id=dados["producoes_id"],
-            pesquisadores_id=dados["pesquisadores_id"],
-            issn=dados["issn"],
-            nomeartigo=dados["nomeartigo"],
-            anoartigo=dados["anoartigo"]
-        )
-
-        lista.append(producao.gerar_json())
+        lista.append({
+            "producoes_id": dados["producoes_id"],
+            "pesquisadores_id": dados["pesquisadores_id"],
+            "pesquisador_nome": dados["pesquisador_nome"],
+            "issn": dados["issn"],
+            "nomeartigo": dados["nomeartigo"],
+            "anoartigo": dados["anoartigo"]
+        })
 
     return lista
+
+
+def preparar_textos_para_rag():
+
+    producoes = consultar_producoes()
+
+    textos = []
+    metadados = []
+
+    for p in producoes:
+
+        texto = (
+            f"Artigo: {p['nomeartigo']}. "
+            f"Pesquisador: {p['pesquisador_nome']}. "
+            f"ISSN: {p['issn']}. "
+            f"Ano: {p['anoartigo']}."
+        )
+
+        textos.append(texto)
+
+        metadados.append({
+            "titulo": p["nomeartigo"],
+            "pesquisador": p["pesquisador_nome"],
+            "ano": p["anoartigo"],
+            "producoes_id": p["producoes_id"]
+        })
+
+    return textos, metadados
